@@ -15,14 +15,12 @@ class TalkPasteWidget extends StatefulWidget {
 }
 
 class _TalkPasteWidgetState extends State<TalkPasteWidget> with WindowListener, SingleTickerProviderStateMixin {
-  // Offset? _startDragPosition; // Removed
   Size? _windowSize; // Current size of the window, nullable until initialized
   Size? _initialWindowSize; // Store the original window size, nullable until initialized
   late Size _screenSize = const Size(1920, 1080); // Default initial screen size
   bool _isHovered = false;
   bool _isInitialPositionSet = false; // Flag to set initial position only once
   bool _isDragging = false; // New flag to indicate if dragging is active
-  // Offset? _dragOffsetFromWindowTopLeft; // Removed: No longer needed with new drag logic
 
   @override
   void initState() {
@@ -44,15 +42,15 @@ class _TalkPasteWidgetState extends State<TalkPasteWidget> with WindowListener, 
       _screenSize = await screenRetriever.getPrimaryDisplay().then((display) => display.size); // Get actual screen size
 
       final currentWindowPosition = await windowManager.getPosition();
-      if (!_isInitialPositionSet && currentWindowPosition == Offset.zero) { // Check if position is (0,0) before setting initial
+      if (!_isInitialPositionSet && currentWindowPosition == Offset.zero) {
         _windowSize = await windowManager.getSize();
         _initialWindowSize = _windowSize; // Store the actual initial size only once
-        const double padding = 20.0; // Desired padding from edges
+        const double padding = 20.0;
         await windowManager.setPosition(Offset(
           _screenSize.width - _windowSize!.width - padding,
           _screenSize.height - _windowSize!.height - padding,
         ));
-        _isInitialPositionSet = true; // Mark as set
+        _isInitialPositionSet = true;
       } else {
         _windowSize = await windowManager.getSize(); // Always update current window size
       }
@@ -72,43 +70,52 @@ class _TalkPasteWidgetState extends State<TalkPasteWidget> with WindowListener, 
         bool isListening = speechService.isListening;
         bool hideWidget = settingsService.settings.hideWidget;
 
-        // Handle case where _windowSize might not be initialized yet
         if (_windowSize == null) {
-          return const SizedBox.shrink(); // Or a loading indicator
+          return const SizedBox.shrink();
         }
 
         return Visibility(
           visible: !hideWidget,
-          child: MouseRegion( // Wrap GestureDetector with MouseRegion for cursor changes
+          child: MouseRegion(
+            onEnter: (event) {
+              setState(() {
+                _isHovered = true;
+              });
+            },
+            onExit: (event) {
+              setState(() {
+                _isHovered = false;
+              });
+            },
             cursor: isListening ? SystemMouseCursors.basic : (_isDragging ? SystemMouseCursors.grabbing : SystemMouseCursors.grab),
             child: GestureDetector(
               onPanStart: (details) async {
-                if (isListening) return; // Still prevent drag during listening
-                setState(() { _isDragging = true; }); // Indicate drag started
-                await windowManager.startDragging(); // Start OS-level dragging
+                if (isListening) return;
+                setState(() { _isDragging = true; });
+                await windowManager.startDragging();
               },
               onPanEnd: (details) {
-                if (isListening) return; // Still prevent drag during listening
-                setState(() { _isDragging = false; }); // Indicate drag ended
+                if (isListening) return;
+                setState(() { _isDragging = false; });
               },
               child: Container(
-                width: _windowSize!.width, // Use nullable-aware access
-                height: _windowSize!.height, // Use nullable-aware access
+                width: _windowSize!.width,
+                height: _windowSize!.height,
                 decoration: BoxDecoration(
-                  color: isListening ? Colors.deepPurple.shade700 : (_isHovered ? Colors.grey.shade800 : Colors.grey.shade700), // Darker when listening/hovered
+                  color: isListening ? Colors.deepPurple.shade700 : (_isHovered ? Colors.grey.shade800 : Colors.grey.shade700),
                   borderRadius: BorderRadius.circular(20.0),
                 ),
                 child: isListening
                     ? Stack(
                         alignment: Alignment.center,
                         children: [
-                          EqualizerAnimationWidget(size: _windowSize!.height * 0.7), // Use height for equalizer size
+                          EqualizerAnimationWidget(size: _windowSize!.height * 0.7),
                         ],
                       )
                     : Center(
                         child: Icon(
                           _isHovered ? Icons.touch_app : Icons.mic,
-                          size: _windowSize!.height * 0.5, // Reduced icon size
+                          size: _windowSize!.height * 0.5,
                           color: Colors.white.withOpacity(0.8),
                         ),
                       ),
@@ -127,8 +134,8 @@ class _TalkPasteWidgetState extends State<TalkPasteWidget> with WindowListener, 
   void onWindowBlur() {}
 
   @override
-  void onWindowResize() async { // Made async
-    _windowSize = await windowManager.getSize(); // Update _windowSize with actual new size
+  void onWindowResize() async {
+    _windowSize = await windowManager.getSize();
     if (mounted) {
       setState(() {});
     }
